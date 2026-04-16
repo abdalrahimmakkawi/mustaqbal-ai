@@ -37,8 +37,19 @@ export function ChatInterface({ lang }: ChatInterfaceProps) {
     setInput('');
     setLoading(true);
 
-    const response = await getTutorResponse(subject, input, vibe, lang, messages);
-    setMessages(prev => [...prev, { role: 'model', text: response }]);
+    // Add empty assistant message first
+    setMessages(prev => [...prev, { role: 'model', text: '' }]);
+    
+    await getTutorResponse(subject, input, vibe, lang, messages, (delta) => {
+      setMessages(prev => {
+        const updated = [...prev];
+        const last = updated[updated.length - 1];
+        if (last.role === 'model') {
+          updated[updated.length - 1] = { ...last, text: last.text + delta };
+        }
+        return updated;
+      });
+    });
     setLoading(false);
   };
 
