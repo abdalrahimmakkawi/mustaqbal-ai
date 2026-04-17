@@ -1,29 +1,33 @@
 ﻿import { VercelRequest, VercelResponse } from '@vercel/node';
 
 function buildSystemPrompt(vibe: string, language: string): string {
-  const systemInstruction = '
-  You are "Ya Akhoya AI", a brilliant, warm, and high-energy Sudanese tutor for high school boys.
-  You aren't just a teacher; you are their "Big Brother" (Ya Akhoya/Ya Farda) who wants to see them succeed.
+  const vibeExamples: Record<string, Record<string, string>> = {
+    football: {
+      ar: 'Use football matches, players, and tactics as examples for every concept',
+      en: 'Use football matches, players, and tactics as examples for every concept',
+    },
+    gaming: {
+      ar: 'Use video games like Minecraft, Fortnite, and FIFA as examples for every concept',
+      en: 'Use video games like Minecraft, Fortnite, and FIFA as examples for every concept',
+    },
+    action: {
+      ar: 'Use action movies and superheroes as examples for every concept',
+      en: 'Use action movies and superheroes as examples for every concept',
+    },
+    street: {
+      ar: 'Use everyday Sudanese street culture and youth slang to explain concepts',
+      en: 'Use everyday Sudanese street culture and youth slang to explain concepts',
+    },
+  };
 
-  FLEXIBILITY & FREEDOM:
-  - You are an expert in ALL academic school subjects (Physics, Chemistry, History, Geography, Math, Art, English, Arabic, etc.).
-  - Follow the student's lead. Explain any topic from any school subject requested.
-  - If they ask a general question, answer it naturally while keeping your "Big Brother" persona.
+  const vib = vibeExamples[vibe] || vibeExamples.football;
+  const vibeInstruction = language === 'ar' ? vib.ar : vib.en;
 
-  STRICT LANGUAGE RULES:
-  - Current Language Selection: ' + (language === 'ar' ? 'Arabic' : 'English') + '
-  - Write exclusively in the target script.
+  if (language === 'ar') {
+    return 'You are "Ya Akhoya AI" ' + ' ' + ' ' + 'a smart, energetic Sudanese tutor for high school boys. You are an expert in ALL Sudanese high school subjects: Physics, Chemistry, Biology, Math, History, Geography, Arabic, English, Art, and more. ' + vibeInstruction + '. Be brief, clear, and fun. Use emoji sometimes. Always end with a follow-up like: "Get it? Want me to go deeper?" or "Any questions?"';
+  }
 
-  CONVERSATIONAL STYLE:
-  - Start with a warm greeting in the target script (e.g., Arabic: "ya batal hababak", English: "Hey champ!").
-  - Use analogies based on the selected vibe (' + vibe + ') to explain complex topics. 
-  - Use relatable Sudanese examples (e.g., History of the Mahdiyya, Geography of the Blue Nile, Art in Khartoum).
-  - Ask follow-up questions to keep the conversation going.
-
-  GOAL: Be a smart, relatable, and helpful friend. Make them feel like they can ask you anything about their school studies.
-';
-
-  return systemInstruction;
+  return 'You are "Ya Akhoya AI" ' + ' ' + ' ' + 'a smart, energetic Sudanese tutor for high school boys. You are an expert in ALL Sudanese high school subjects: Physics, Chemistry, Biology, Math, History, Geography, Arabic, English, Art, and more. ' + vibeInstruction + '. Be brief, clear, and fun. Use emoji sometimes. Always end with a follow-up like: "Get it? Want me to go deeper?" or "Any questions?"';
 }
 
 export const config = { maxDuration: 10 };
@@ -35,21 +39,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { subject, topic, vibe = 'football', language = 'ar', history = [] } = req.body;
-  if (!topic || !subject) return res.status(400).json({ error: 'subject and topic required' });
+  const {
+    subject = 'General',
+    topic = '',
+    vibe = 'football',
+    language = 'ar',
+    history = [],
+    message = '',
+  } = req.body;
+
+  // Accept either a free-form message OR subject+topic format
+  const userMessage = message
+    ? message
+    : language === 'ar'
+      ? 'Explain "' + topic + '" in the subject "' + subject + '"' 
+      : 'Explain "' + topic + '" in the subject "' + subject + '"';
+
+  if (!userMessage.trim()) {
+    return res.status(400).json({ error: 'message or topic+subject required' });
+  }
 
   const nvidiaKey = process.env.NVIDIA_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
   const systemPrompt = buildSystemPrompt(vibe, language);
-  const userMessage = language === 'ar'
-    ? 'Explain "' + topic + '" in "' + subject + '" briefly' 
-    : 'Explain "' + topic + '" in "' + subject + '" briefly';
 
-  // NVIDIA with streaming
+  // NVIDIA streaming (8s timeout)
   if (nvidiaKey) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+      const tid = setTimeout(() => controller.abort(), 8000);
 
       const nvRes = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
         method: 'POST',
@@ -60,8 +78,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         signal: controller.signal,
         body: JSON.stringify({
           model: 'meta/llama-3.1-8b-instruct',
-          max_tokens: 350,
-          temperature: 0.7,
+          max_tokens: 400,
+          temperature: 0.75,
           stream: true,
           messages: [
             { role: 'system', content: systemPrompt },
@@ -74,7 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }),
       });
 
-      clearTimeout(timeout);
+      clearTimeout(tid);
 
       if (nvRes.ok && nvRes.body) {
         res.setHeader('Content-Type', 'text/event-stream');
@@ -83,31 +101,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const reader = nvRes.body.getReader();
         const decoder = new TextDecoder();
-        let fullContent = '';
+        let full = '';
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+          const lines = decoder.decode(value, { stream: true })
+            .split('\n')
+            .filter(l => l.startsWith('data: '));
           for (const line of lines) {
-            const jsonStr = line.replace('data: ', '').trim();
-            if (jsonStr === '[DONE]') continue;
+            const str = line.slice(6).trim();
+            if (str === '[DONE]') continue;
             try {
-              const parsed = JSON.parse(jsonStr);
-              const delta = parsed.choices?.[0]?.delta?.content || '';
+              const delta = JSON.parse(str).choices?.[0]?.delta?.content || '';
               if (delta) {
-                fullContent += delta;
+                full += delta;
                 res.write('data: ' + JSON.stringify({ delta }) + '\n\n');
               }
             } catch {}
           }
         }
-        res.write('data: ' + JSON.stringify({ done: true, content: fullContent }) + '\n\n');
+        res.write('data: ' + JSON.stringify({ done: true, content: full }) + '\n\n');
         return res.end();
       }
-    } catch (err: any) {
-      console.error('NVIDIA failed:', err.name === 'AbortError' ? 'timeout' : err.message);
+    } catch (e: any) {
+      console.error('NVIDIA:', e.name === 'AbortError' ? 'timeout' : e.message);
     }
   }
 
@@ -115,18 +133,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (geminiKey) {
     try {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const ai = new GoogleGenerativeAI(geminiKey);
-      const model = ai.getGenerativeModel({
+      const model = new GoogleGenerativeAI(geminiKey).getGenerativeModel({
         model: 'gemini-2.0-flash',
         systemInstruction: systemPrompt,
-        generationConfig: { maxOutputTokens: 350, temperature: 0.7 },
+        generationConfig: { maxOutputTokens: 400, temperature: 0.75 },
       });
+
       const result = await model.generateContent({
         contents: [
           ...history.map((m: any) => ({ role: m.role, parts: [{ text: m.text }] })),
           { role: 'user', parts: [{ text: userMessage }] },
         ],
       });
+
       const content = result.response.text();
       if (content) {
         res.setHeader('Content-Type', 'text/event-stream');
@@ -135,9 +154,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.write('data: ' + JSON.stringify({ done: true, content }) + '\n\n');
         return res.end();
       }
-    } catch (err: any) {
-      console.error('Gemini failed:', err.message);
-      return res.status(500).json({ error: 'Both APIs failed' });
+    } catch (e: any) {
+      console.error('Gemini:', e.message);
+      return res.status(500).json({ error: 'Both APIs failed: ' + e.message });
     }
   }
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, Bot, User, Sparkles, Trophy, Gamepad2, Zap, MessageSquare } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -9,10 +9,10 @@ interface ChatInterfaceProps {
 }
 
 const VIBES: { id: Vibe; icon: any; label: { ar: string; en: string } }[] = [
-  { id: 'football', icon: Trophy, label: { ar: 'كورة', en: 'Football' } },
-  { id: 'gaming', icon: Gamepad2, label: { ar: 'جيمنج', en: 'Gaming' } },
-  { id: 'action', icon: Zap, label: { ar: 'أكشن', en: 'Action' } },
-  { id: 'street', icon: MessageSquare, label: { ar: 'وناسة', en: 'Street' } },
+  { id: 'football', icon: Trophy, label: { ar: 'Football', en: 'Football' } },
+  { id: 'gaming', icon: Gamepad2, label: { ar: 'Gaming', en: 'Gaming' } },
+  { id: 'action', icon: Zap, label: { ar: 'Action', en: 'Action' } },
+  { id: 'street', icon: MessageSquare, label: { ar: 'Street', en: 'Street' } },
 ];
 
 export function ChatInterface({ lang }: ChatInterfaceProps) {
@@ -20,7 +20,7 @@ export function ChatInterface({ lang }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
   const [vibe, setVibe] = useState<Vibe>('football');
   const [loading, setLoading] = useState(false);
-  const [subject, setSubject] = useState('Physics');
+  const [subject, setSubject] = useState('General');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,13 +34,14 @@ export function ChatInterface({ lang }: ChatInterfaceProps) {
 
     const userMsg: ChatMessage = { role: 'user', text: input };
     setMessages(prev => [...prev, userMsg]);
+    const currentInput = input;
     setInput('');
     setLoading(true);
 
     // Add empty assistant message first
     setMessages(prev => [...prev, { role: 'model', text: '' }]);
     
-    await getTutorResponse(subject, input, vibe, lang, messages, (delta) => {
+    await getTutorResponse(subject, '', vibe, lang, messages, (delta) => {
       setMessages(prev => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
@@ -49,7 +50,7 @@ export function ChatInterface({ lang }: ChatInterfaceProps) {
         }
         return updated;
       });
-    });
+    }, currentInput);
     setLoading(false);
   };
 
@@ -63,10 +64,10 @@ export function ChatInterface({ lang }: ChatInterfaceProps) {
           </div>
           <div>
             <h3 className="font-display font-bold text-lg">
-              {lang === 'ar' ? 'يا أخويا AI' : 'Ya Akhoya AI'}
+              {lang === 'ar' ? 'Ya Akhoya AI' : 'Ya Akhoya AI'}
             </h3>
             <p className="text-xs text-white/50">
-              {lang === 'ar' ? 'جاهز للفهم؟' : 'Ready to understand?'}
+              {lang === 'ar' ? 'Ready to understand?' : 'Ready to understand?'}
             </p>
           </div>
         </div>
@@ -100,8 +101,8 @@ export function ChatInterface({ lang }: ChatInterfaceProps) {
             <Sparkles className="w-12 h-12 text-desert-gold animate-pulse" />
             <p className="font-display text-lg">
               {lang === 'ar' 
-                ? 'أسألني عن أي موضوع في الفيزياء أو الكيمياء...' 
-                : 'Ask me about any topic in Physics or Chemistry...'}
+                ? 'Ask me about any school subject...' 
+                : 'Ask me about any school subject...'}
             </p>
           </div>
         )}
@@ -159,7 +160,7 @@ export function ChatInterface({ lang }: ChatInterfaceProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={lang === 'ar' ? 'أكتب موضوعك هنا...' : 'Type your topic here...'}
+            placeholder={lang === 'ar' ? 'Type your question here...' : 'Type your question here...'}
             className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 focus:outline-none focus:border-neon-green/50 transition-colors"
             dir={lang === 'ar' ? 'rtl' : 'ltr'}
           />

@@ -11,12 +11,17 @@ export async function getTutorResponse(
   vibe: Vibe,
   language: 'ar' | 'en',
   history: ChatMessage[],
-  onChunk?: (delta: string) => void
+  onChunk?: (delta: string) => void,
+  freeMessage?: string
 ): Promise<string> {
+  const body = freeMessage
+    ? { message: freeMessage, subject, vibe, language, history }
+    : { subject, topic, vibe, language, history };
+
   const response = await fetch('/api/tutor', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subject, topic, vibe, language, history }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) throw new Error('API Error: ' + response.status);
@@ -28,12 +33,13 @@ export async function getTutorResponse(
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+    const lines = decoder.decode(value, { stream: true })
+      .split('\n')
+      .filter(l => l.startsWith('data: '));
     for (const line of lines) {
-      const jsonStr = line.replace('data: ', '').trim();
+      const str = line.slice(6).trim();
       try {
-        const parsed = JSON.parse(jsonStr);
+        const parsed = JSON.parse(str);
         if (parsed.delta && onChunk) {
           fullContent += parsed.delta;
           onChunk(parsed.delta);
@@ -43,5 +49,6 @@ export async function getTutorResponse(
     }
   }
 
-  return fullContent || (language === 'ar' ? 'آسف، حدث خطأ ما.' : 'Sorry, something went wrong.');
+  return fullContent ||
+    (language === 'ar' ? 'Sorry, something went wrong.' : 'Sorry, something went wrong.');
 }
