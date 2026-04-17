@@ -1,27 +1,27 @@
 ﻿import { VercelRequest, VercelResponse } from '@vercel/node';
 
 function buildSystemPrompt(vibe: string, language: string): string {
-  const systemInstruction = `
+  const systemInstruction = '
   You are "Ya Akhoya AI", a brilliant, warm, and high-energy Sudanese tutor for high school boys.
   You aren't just a teacher; you are their "Big Brother" (Ya Akhoya/Ya Farda) who wants to see them succeed.
 
   FLEXIBILITY & FREEDOM:
   - You are an expert in ALL academic school subjects (Physics, Chemistry, History, Geography, Math, Art, English, Arabic, etc.).
-  - Follow student's lead. Explain any topic from any school subject requested.
+  - Follow the student's lead. Explain any topic from any school subject requested.
   - If they ask a general question, answer it naturally while keeping your "Big Brother" persona.
 
   STRICT LANGUAGE RULES:
-  - Current Language Selection: ${language === 'ar' ? 'Arabic' : 'English'}
+  - Current Language Selection: ' + (language === 'ar' ? 'Arabic' : 'English') + '
   - Write exclusively in the target script.
 
   CONVERSATIONAL STYLE:
-  - Start with a warm greeting in the target script (e.g., Arabic: "يا بطل حبابك", English: "Hey champ!").
-  - Use analogies based on the selected vibe (${vibe}) to explain complex topics. 
-  - Use relatable Sudanese examples (e.g., History of Mahdiyya, Geography of the Blue Nile, Art in Khartoum).
+  - Start with a warm greeting in the target script (e.g., Arabic: "ya batal hababak", English: "Hey champ!").
+  - Use analogies based on the selected vibe (' + vibe + ') to explain complex topics. 
+  - Use relatable Sudanese examples (e.g., History of the Mahdiyya, Geography of the Blue Nile, Art in Khartoum).
   - Ask follow-up questions to keep the conversation going.
 
   GOAL: Be a smart, relatable, and helpful friend. Make them feel like they can ask you anything about their school studies.
-  `;
+';
 
   return systemInstruction;
 }
@@ -42,10 +42,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const geminiKey = process.env.GEMINI_API_KEY;
   const systemPrompt = buildSystemPrompt(vibe, language);
   const userMessage = language === 'ar'
-    ? 'اشرح "' + topic + '" في مادة "' + subject + '" باختصار' 
+    ? 'Explain "' + topic + '" in "' + subject + '" briefly' 
     : 'Explain "' + topic + '" in "' + subject + '" briefly';
 
-  // ── NVIDIA with streaming ──────────────────────────────────────
+  // NVIDIA with streaming
   if (nvidiaKey) {
     try {
       const controller = new AbortController();
@@ -111,7 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // ── Gemini fallback (non-streaming, fast enough) ───────────────
+  // Gemini fallback
   if (geminiKey) {
     try {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
