@@ -1,15 +1,19 @@
-import React, { useRef } from 'react';
+﻿import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, MeshDistortMaterial, Float, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 
 function AnimatedOrb() {
   const meshRef = useRef<THREE.Mesh>(null);
+  // Initialize modern Timer
+  const timer = useMemo(() => new (THREE as any).Timer(), []);
 
-  useFrame((state) => {
+  useFrame(() => {
+    timer.update();
+    const elapsedTime = timer.getElapsed();
     if (meshRef.current) {
-      meshRef.current.rotation.x = state.clock.getElapsedTime() * 0.2;
-      meshRef.current.rotation.y = state.clock.getElapsedTime() * 0.3;
+      meshRef.current.rotation.x = elapsedTime * 0.2;
+      meshRef.current.rotation.y = elapsedTime * 0.3;
     }
   });
 

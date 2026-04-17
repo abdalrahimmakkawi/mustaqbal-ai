@@ -53,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const controller = new AbortController();
       const tid = setTimeout(() => controller.abort(), 8000);
 
-      const nvRes = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+      const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,12 +78,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       clearTimeout(tid);
 
-      if (nvRes.ok && nvRes.body) {
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('NVIDIA API Error:', 'Status ' + response.status + ': ' + errorText);
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.write('data: ' + JSON.stringify({ error: { status: response.status, message: errorText } }) + '\n\n');
+        return res.end();
+      }
+
+      if (response.body) {
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('X-Accel-Buffering', 'no');
 
-        const reader = nvRes.body.getReader();
+        const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let full = '';
 
@@ -108,8 +117,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.write('data: ' + JSON.stringify({ done: true, content: full }) + '\n\n');
         return res.end();
       }
-    } catch (e: any) {
-      console.error('NVIDIA:', e.name === 'AbortError' ? 'timeout' : e.message);
+    } catch (error: any) {
+      console.error('NVIDIA Request Error:', error.message || error);
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.write('data: ' + JSON.stringify({ error: error.message || 'Internal Server Error' }) + '\n\n');
+      return res.end();
     }
   }
 
@@ -137,9 +150,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.write('data: ' + JSON.stringify({ done: true, content }) + '\n\n');
         return res.end();
       }
-    } catch (e: any) {
-      console.error('Gemini:', e.message);
-      return res.status(500).json({ error: 'Both APIs failed: ' + e.message });
+    } catch (error: any) {
+      console.error('Gemini API Error:', error.message || error);
+      return res.status(500).json({ error: 'Both APIs failed: ' + (error.message || error) });
     }
   }
 
