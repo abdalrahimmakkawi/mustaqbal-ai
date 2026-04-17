@@ -40,9 +40,9 @@ export async function getTutorResponse(
       const str = line.slice(6).trim();
       try {
         const parsed = JSON.parse(str);
-        if (parsed.delta && onChunk) {
+        if (parsed.delta) {
           fullContent += parsed.delta;
-          onChunk(parsed.delta);
+          if (onChunk) onChunk(parsed.delta);
         }
         if (parsed.done) fullContent = parsed.content || fullContent;
       } catch {}
@@ -50,5 +50,5 @@ export async function getTutorResponse(
   }
 
   return fullContent ||
-    (language === 'ar' ? 'Sorry, something went wrong.' : 'Sorry, something went wrong.');
+    (language === 'ar' ? 'Sorry, something went wrong. Try again.' : 'Sorry, something went wrong. Try again.');
 }

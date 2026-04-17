@@ -1,33 +1,19 @@
 ﻿import { VercelRequest, VercelResponse } from '@vercel/node';
 
 function buildSystemPrompt(vibe: string, language: string): string {
-  const vibeExamples: Record<string, Record<string, string>> = {
-    football: {
-      ar: 'Use football matches, players, and tactics as examples for every concept',
-      en: 'Use football matches, players, and tactics as examples for every concept',
-    },
-    gaming: {
-      ar: 'Use video games like Minecraft, Fortnite, and FIFA as examples for every concept',
-      en: 'Use video games like Minecraft, Fortnite, and FIFA as examples for every concept',
-    },
-    action: {
-      ar: 'Use action movies and superheroes as examples for every concept',
-      en: 'Use action movies and superheroes as examples for every concept',
-    },
-    street: {
-      ar: 'Use everyday Sudanese street culture and youth slang to explain concepts',
-      en: 'Use everyday Sudanese street culture and youth slang to explain concepts',
-    },
+  const vibeMap: Record<string, string> = {
+    football: 'Use football matches, players, goals, and tactics as analogies for every concept you explain.',
+    gaming:   'Use video games like FIFA, Minecraft, Fortnite, and Free Fire as analogies for every concept.',
+    action:   'Use action movies, superheroes, and fight scenes as analogies for every concept.',
+    street:   'Use Sudanese street culture, everyday youth life, and relatable local situations as analogies.',
   };
-
-  const vib = vibeExamples[vibe] || vibeExamples.football;
-  const vibeInstruction = language === 'ar' ? vib.ar : vib.en;
+  const vibeInstruction = vibeMap[vibe] || vibeMap.football;
 
   if (language === 'ar') {
-    return 'You are "Ya Akhoya AI" ' + ' ' + ' ' + 'a smart, energetic Sudanese tutor for high school boys. You are an expert in ALL Sudanese high school subjects: Physics, Chemistry, Biology, Math, History, Geography, Arabic, English, Art, and more. ' + vibeInstruction + '. Be brief, clear, and fun. Use emoji sometimes. Always end with a follow-up like: "Get it? Want me to go deeper?" or "Any questions?"';
+    return 'You are "Ya Akhoya AI" ' + ' ' + ' ' + 'a smart, energetic Sudanese tutor for high school boys. You are an expert in ALL Sudanese high school subjects: Physics, Chemistry, Biology, Math, History, Geography, Arabic, English, Art, and more. ' + vibeInstruction + '. Be brief, clear, warm, and fun. Use emoji sometimes. Always end with a follow-up like: "Get it? Want me to go deeper?" or "Any questions, bro?"';
   }
 
-  return 'You are "Ya Akhoya AI" ' + ' ' + ' ' + 'a smart, energetic Sudanese tutor for high school boys. You are an expert in ALL Sudanese high school subjects: Physics, Chemistry, Biology, Math, History, Geography, Arabic, English, Art, and more. ' + vibeInstruction + '. Be brief, clear, and fun. Use emoji sometimes. Always end with a follow-up like: "Get it? Want me to go deeper?" or "Any questions?"';
+  return 'You are "Ya Akhoya AI" ' + ' ' + ' ' + 'a smart, energetic Sudanese tutor for high school boys. You are an expert in ALL Sudanese high school subjects: Physics, Chemistry, Biology, Math, History, Geography, Arabic, English, Art, and more. ' + vibeInstruction + '. Be brief, clear, warm, and fun. Use emoji sometimes. Always end with a follow-up like: "Get it? Want me to go deeper?" or "Any questions, bro?"';
 }
 
 export const config = { maxDuration: 10 };
@@ -48,7 +34,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     message = '',
   } = req.body;
 
-  // Accept either a free-form message OR subject+topic format
   const userMessage = message
     ? message
     : language === 'ar'
@@ -63,7 +48,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const geminiKey = process.env.GEMINI_API_KEY;
   const systemPrompt = buildSystemPrompt(vibe, language);
 
-  // NVIDIA streaming (8s timeout)
   if (nvidiaKey) {
     try {
       const controller = new AbortController();
@@ -129,7 +113,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // Gemini fallback
   if (geminiKey) {
     try {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
