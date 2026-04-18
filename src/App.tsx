@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Languages, BookOpen, Cpu, Globe, ArrowRight, Phone, MessageCircle, X } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 import { ThreeScene } from './components/ThreeScene';
 import { ChatInterface } from './components/ChatInterface';
 import { cn } from './lib/utils';
@@ -197,6 +198,7 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+      <Analytics />
     </div>
   );
 }
